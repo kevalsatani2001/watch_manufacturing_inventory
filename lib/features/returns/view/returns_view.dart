@@ -1,0 +1,223 @@
+// ignore_for_file: unused_element
+
+import 'package:lottie/lottie.dart';
+import 'package:watch_manufacturing_inventory_app/core/common/app_imports.dart';
+import 'package:watch_manufacturing_inventory_app/features/returns/bloc/returns_bloc.dart';
+import 'package:watch_manufacturing_inventory_app/features/returns/bloc/returns_event.dart';
+import 'package:watch_manufacturing_inventory_app/features/returns/bloc/returns_state.dart';
+
+class ReturnsView extends StatefulWidget {
+  const ReturnsView({super.key});
+
+  @override
+  State<ReturnsView> createState() => _ReturnsViewState();
+}
+
+class _ReturnsViewState extends State<ReturnsView> {
+  final TextEditingController _qtyController = TextEditingController(text: '1');
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<ReturnsBloc>().add(const ReturnsLoadRequested());
+  }
+
+  @override
+  void dispose() {
+    _qtyController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ReturnsBloc, ReturnsState>(
+      builder: (context, state) {
+        final loading = state.viewState == ViewState.loading;
+        final success = state.viewState == ViewState.success && state.successMessage != null;
+
+        return ResponsiveScaffold(
+          appBar: const AppAppBar(
+            backgroundColor: AppColors.obsidianMidnight,
+            title: AppText(AppStrings.returnsTitle),
+          ),
+          backgroundColor: AppColors.obsidianMidnight,
+          body: ResponsiveLayout(
+            mobile: _buildLeft(context, state, loading, success),
+            tablet: _buildLeft(context, state, loading, success),
+            desktop: _buildLeft(context, state, loading, success),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLeft(BuildContext context, ReturnsState state, bool loading, bool success) {
+    return AnimationLimiter(
+      child: ListView(
+        children: AnimationConfiguration.toStaggeredList(
+          duration: const Duration(milliseconds: 350),
+          childAnimationBuilder: (widget) => SlideAnimation(
+            verticalOffset: AppSizes.xl,
+            child: FadeInAnimation(child: widget),
+          ),
+          children: <Widget>[
+            _glassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  AppText('${AppStrings.watch}: ${state.stock[AppStrings.watch] ?? 0}'),
+                  AppSpacing.vMd,
+                  AppTextField(
+                    controller: _qtyController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (value) => context.read<ReturnsBloc>().add(ReturnsQuantityChanged(value)),
+                    decoration: const InputDecoration(
+                      labelText: AppStrings.qtyLabel,
+                      hintText: AppStrings.qtyHint,
+                    ),
+                  ),
+                  AppSpacing.vMd,
+                  AppButton(
+                    label: AppStrings.returnWatch,
+                    isExpanded: true,
+                    onPressed: loading ? null : () => context.read<ReturnsBloc>().add(const ReturnsAddBackRequested()),
+                    icon: loading ? const AppLoader(size: AppSizes.md, strokeWidth: 2) : null,
+                  ),
+                  AppSpacing.vSm,
+                  AppButton(
+                    label: AppStrings.dismantleWatch,
+                    isExpanded: true,
+                    onPressed: loading ? null : () => context.read<ReturnsBloc>().add(const ReturnsDismantleRequested()),
+                  ),
+                  if (state.errorMessage != null) ...<Widget>[
+                    AppSpacing.vSm,
+                    AppText(
+                      state.errorMessage!,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.danger),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (success)
+              _glassCard(
+                child: Column(
+                  children: <Widget>[
+                    SizedBox(
+                      height: AppSizes.xxl * 3,
+                      child: Lottie.asset(AppStrings.successLottieAsset, repeat: false),
+                    ),
+                    AppText(state.successMessage!),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLedgerPanel(List<StockLedgerEntry> entries, {required bool scrollable}) {
+    return _glassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const AppText(AppStrings.transactionHistory),
+          AppSpacing.vMd,
+          if (entries.isEmpty)
+            const AppText(AppStrings.noLedgerTransactions)
+          else if (!scrollable)
+            ...entries.take(8).map(_ledgerRow)
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: entries.length,
+                itemBuilder: (_, index) => _ledgerRow(entries[index]),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ledgerRow(StockLedgerEntry entry) {
+    final type = entry.transactionType;
+    final isIn = type == 'IN';
+    final accent = isIn ? AppColors.success : AppColors.goldenAmber;
+    final badgeBg = accent.withValues(alpha: 0.18);
+    final badgeBorder = accent.withValues(alpha: 0.45);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSizes.sm),
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.md),
+        decoration: BoxDecoration(
+          color: AppColors.cardGlass,
+          borderRadius: BorderRadius.circular(AppSizes.md),
+          border: Border.all(color: AppColors.borderGlass),
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.xs),
+              decoration: BoxDecoration(
+                color: badgeBg,
+                borderRadius: BorderRadius.circular(AppSizes.sm),
+                border: Border.all(color: badgeBorder),
+              ),
+              child: AppText(type, style: TextStyle(color: accent, fontWeight: FontWeight.w800)),
+            ),
+            AppSpacing.hMd,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  AppText(entry.itemName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  AppSpacing.vXs,
+                  AppText(
+                    entry.reason,
+                    style: const TextStyle(color: AppColors.textSecondary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            AppSpacing.hMd,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                AppText('x${entry.quantity}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                AppSpacing.vXs,
+                AppText(_formatWhen(entry.createdAt), style: const TextStyle(color: AppColors.textSecondary)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatWhen(DateTime dt) {
+    String two(int v) => v < 10 ? '0$v' : '$v';
+    return '${two(dt.hour)}:${two(dt.minute)} • ${two(dt.day)}/${two(dt.month)}';
+  }
+
+  Widget _glassCard({required Widget child}) {
+    return AppCard(
+      color: AppColors.cardGlass,
+      shadowColor: AppColors.obsidianMidnight,
+      elevation: AppSizes.xs,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.lg),
+        side: const BorderSide(color: AppColors.borderGlass),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSizes.lg),
+        child: child,
+      ),
+    );
+  }
+}
+
