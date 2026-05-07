@@ -4,8 +4,10 @@ import 'package:watch_manufacturing_inventory_app/core/services/stock_ledger_hiv
 import 'package:watch_manufacturing_inventory_app/core/services/ledger_pdf_service.dart';
 import 'package:watch_manufacturing_inventory_app/features/dashboard/view/dashboard_view.dart';
 import 'package:watch_manufacturing_inventory_app/features/inventory/bloc/inventory_bloc.dart';
+import 'package:watch_manufacturing_inventory_app/features/inventory/bloc/inventory_event.dart';
 import 'package:watch_manufacturing_inventory_app/features/inventory/view/inventory_view.dart';
 import 'package:watch_manufacturing_inventory_app/features/ledger/bloc/ledger_bloc.dart';
+import 'package:watch_manufacturing_inventory_app/features/ledger/bloc/ledger_event.dart';
 import 'package:watch_manufacturing_inventory_app/features/ledger/view/ledger_view.dart';
 import 'package:watch_manufacturing_inventory_app/features/production/bloc/production_bloc.dart';
 import 'package:watch_manufacturing_inventory_app/features/production/view/production_view.dart';
@@ -28,7 +30,21 @@ class AppRouter {
     switch (settings.name) {
       case home:
         return MaterialPageRoute<void>(
-          builder: (_) => const DashboardView(),
+          builder: (_) => MultiBlocProvider(
+            providers: <BlocProvider<dynamic>>[
+              BlocProvider<InventoryBloc>(
+                create: (_) => InventoryBloc(stockService: StockLedgerHiveService.instance)
+                  ..add(const InventoryLoadRequested()),
+              ),
+              BlocProvider<LedgerBloc>(
+                create: (_) => LedgerBloc(
+                  stockService: StockLedgerHiveService.instance,
+                  pdfService: const LedgerPdfService(),
+                )..add(const LedgerLoadRequested()),
+              ),
+            ],
+            child: const DashboardView(),
+          ),
           settings: settings,
         );
       case production:

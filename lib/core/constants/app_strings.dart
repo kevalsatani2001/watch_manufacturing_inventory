@@ -39,6 +39,11 @@ class AppStrings {
   static const String latestTenEntries = 'Activity Stream';
   static const String luxuryTagline = 'Luxury Manufacturing • Offline-first Ledger';
   static const String dashboardDynamicTagline = 'Precision Manufacturing & Inventory Excellence • {moves} Ledger Movements';
+  static const String inventoryOverviewTitle = 'Inventory Overview';
+  static const String stockTrendTitle = 'Stock Trend (Last 7 Days)';
+  static const String legendIn = 'IN';
+  static const String legendOut = 'OUT';
+  static const String lowStockBadge = 'LOW';
   static const String openLabel = 'Open';
   static const String openInventory = 'Open Inventory';
   static const String openProduction = 'Open Production';

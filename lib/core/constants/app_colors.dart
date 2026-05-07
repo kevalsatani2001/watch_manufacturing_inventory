@@ -13,6 +13,7 @@ class AppColors {
   static const Color textPrimary = Color(0xFFE5E7EB);
   static const Color textSecondary = Color(0xFF94A3B8);
   static const Color surfaceElevated = Color(0xFF111C33);
+  static const Color trendBlue = Color(0xFF60A5FA);
   static const Color success = Color(0xFF22C55E);
   static const Color danger = Color(0xFFEF4444);
 }

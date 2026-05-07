@@ -1,4 +1,11 @@
 import 'package:watch_manufacturing_inventory_app/core/common/app_imports.dart';
+import 'package:watch_manufacturing_inventory_app/features/dashboard/services/dashboard_stock_analysis_service.dart';
+import 'package:watch_manufacturing_inventory_app/features/dashboard/widgets/stock_graph_widget.dart';
+import 'package:watch_manufacturing_inventory_app/features/dashboard/widgets/stock_grid_widget.dart';
+import 'package:watch_manufacturing_inventory_app/features/inventory/bloc/inventory_bloc.dart';
+import 'package:watch_manufacturing_inventory_app/features/inventory/bloc/inventory_state.dart';
+import 'package:watch_manufacturing_inventory_app/features/ledger/bloc/ledger_bloc.dart';
+import 'package:watch_manufacturing_inventory_app/features/ledger/bloc/ledger_state.dart';
 
 class DashboardView extends StatelessWidget {
   const DashboardView({super.key});
@@ -10,10 +17,17 @@ class DashboardView extends StatelessWidget {
         AppStrings.ledgerBoxName,
       ).listenable(),
       builder: (context, box, child) {
+        final InventoryState inventoryState = context.watch<InventoryBloc>().state;
+        final LedgerState ledgerState = context.watch<LedgerBloc>().state;
         final latest = StockLedgerHiveService.instance.recentEntries(
           limit: 10,
           includeInitialSeedEntries: false,
         );
+        final stock = DashboardStockAnalysisService.currentStock();
+        final allEntries = StockLedgerHiveService.instance.queryEntries(limit: 100000);
+        final trend = DashboardStockAnalysisService.last7DaysTrend(allEntries);
+        final refreshKey =
+            '${inventoryState.stock.hashCode}-${ledgerState.entries.length}-${latest.isEmpty ? 0 : latest.first.createdAt.millisecondsSinceEpoch}';
         final items = <_DashItem>[
           const _DashItem(
             icon: Icons.inventory_2_outlined,
@@ -48,9 +62,9 @@ class DashboardView extends StatelessWidget {
           ),
           backgroundColor: AppColors.obsidianMidnight,
           body: ResponsiveLayout(
-            mobile: _buildMobile(context, items, latest),
-            tablet: _buildTablet(context, items, latest),
-            desktop: _buildDesktop(context, items, latest),
+            mobile: _buildMobile(context, items, latest, stock, trend, refreshKey),
+            tablet: _buildTablet(context, items, latest, stock, trend, refreshKey),
+            desktop: _buildDesktop(context, items, latest, stock, trend, refreshKey),
           ),
         );
       },
@@ -61,6 +75,9 @@ class DashboardView extends StatelessWidget {
     BuildContext context,
     List<_DashItem> items,
     List<StockLedgerEntry> latest,
+    Map<String, int> stock,
+    List<StockTrendPoint> trend,
+    String refreshKey,
   ) {
     return AnimationLimiter(
       child: ListView(
@@ -72,6 +89,9 @@ class DashboardView extends StatelessWidget {
           ),
           children: <Widget>[
             _headerCard(context, latest.length),
+            const SizedBox(height: AppSizes.large),
+            _inventoryOverviewSection(context, stock, trend, refreshKey),
+            const SizedBox(height: AppSizes.large),
             ...items.map((i) => _navTile(context, item: i)),
             const SizedBox(height: AppSizes.large),
             _latestCard(context, latest),
@@ -85,10 +105,16 @@ class DashboardView extends StatelessWidget {
     BuildContext context,
     List<_DashItem> items,
     List<StockLedgerEntry> latest,
+    Map<String, int> stock,
+    List<StockTrendPoint> trend,
+    String refreshKey,
   ) {
     return ListView(
       children: <Widget>[
         _headerCard(context, latest.length),
+        const SizedBox(height: AppSizes.large),
+        _inventoryOverviewSection(context, stock, trend, refreshKey),
+        const SizedBox(height: AppSizes.large),
         AppSpacing.vMd,
         AppGrid<_DashItem>(
           items: items,
@@ -110,10 +136,16 @@ class DashboardView extends StatelessWidget {
     BuildContext context,
     List<_DashItem> items,
     List<StockLedgerEntry> latest,
+    Map<String, int> stock,
+    List<StockTrendPoint> trend,
+    String refreshKey,
   ) {
     return ListView(
       children: <Widget>[
         _headerCard(context, latest.length),
+        const SizedBox(height: AppSizes.large),
+        _inventoryOverviewSection(context, stock, trend, refreshKey),
+        const SizedBox(height: AppSizes.large),
         AppSpacing.vMd,
         AppGrid<_DashItem>(
           items: items,
@@ -128,6 +160,30 @@ class DashboardView extends StatelessWidget {
         const SizedBox(height: AppSizes.large),
         _latestCard(context, latest),
       ],
+    );
+  }
+
+  Widget _inventoryOverviewSection(
+    BuildContext context,
+    Map<String, int> stock,
+    List<StockTrendPoint> trend,
+    String refreshKey,
+  ) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 420),
+      switchInCurve: Curves.easeOutExpo,
+      transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+      child: Column(
+        key: ValueKey<String>(refreshKey),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _premiumHeading(context, AppStrings.inventoryOverviewTitle),
+          AppSpacing.vMd,
+          StockGridWidget(stock: stock),
+          AppSpacing.vMd,
+          StockGraphWidget(points: trend),
+        ],
+      ),
     );
   }
 
